@@ -44,6 +44,7 @@ MODELO_HTML = """<!DOCTYPE html>
   svg text {{ font-family: inherit; font-size: 14px; }}
   svg .rotulo {{ fill: #374151; }}
   svg .legenda {{ fill: #111827; }}
+  #conclusao {{ margin: 16px 0 0; line-height: 1.6; }}
 </style>
 </head>
 <body>
@@ -51,6 +52,7 @@ MODELO_HTML = """<!DOCTYPE html>
 <h1>Receita mensal por região</h1>
 <p class="subtitulo">{periodo}, em reais (R$)</p>
 {grafico}
+<p id="conclusao">{conclusao}</p>
 </main>
 </body>
 </html>
@@ -261,12 +263,54 @@ def montar_grafico_svg(meses, series):
     )
 
 
+def montar_conclusao(meses, series, linhas_join, orfas, lojas_sem_vendas):
+    """Parágrafo de conclusão (texto puro) derivado do pivot, do join e das órfãs; sem números fixos."""
+    totais = {regiao: sum(valores, Decimal("0")) for regiao, valores in series.items()}
+    ranking = sorted(totais, key=lambda regiao: totais[regiao], reverse=True)
+    lider, menor = ranking[0], ranking[-1]
+    periodo = f"{rotulo_mes(meses[0])} a {rotulo_mes(meses[-1])}"
+
+    frases = [
+        f"No período de {periodo}, a região {lider} liderou a receita, com "
+        f"{formatar_brl(totais[lider])} no total."
+    ]
+    if len(ranking) > 2:
+        itens = [f"{r} ({formatar_brl(totais[r])})" for r in ranking[1:-1]]
+        intermediarias = " e ".join([", ".join(itens[:-1]), itens[-1]] if len(itens) > 1 else itens)
+        frases.append(f"Nas posições intermediárias ficaram {intermediarias}.")
+
+    frases.append(
+        f"A região de menor receita foi {menor}, com {formatar_brl(totais[menor])}, "
+        f"a linha mais baixa do gráfico."
+    )
+    ativas = sorted({l["id_loja"] for l in linhas_join if l["regiao"] == menor})
+    paradas = [l for l in lojas_sem_vendas if l["regiao"] == menor]
+    if ativas and paradas:
+        vendeu = " e ".join(f"a loja {id_loja}" for id_loja in ativas)
+        sem_vendas = " e ".join(f"a loja {l['id_loja']} ({l['nome_loja']})" for l in paradas)
+        frases.append(
+            f"A causa provável é que apenas {vendeu} vendeu, enquanto {sem_vendas} "
+            f"não teve vendas no período."
+        )
+
+    if orfas:
+        ids = ", ".join(sorted({o["id_loja"] for o in orfas}))
+        receita_orfas = sum((Decimal(o["receita_brl"]) for o in orfas), Decimal("0"))
+        frases.append(
+            f"Ressalva: {len(orfas)} vendas órfãs (id_loja={ids}, {formatar_brl(receita_orfas)}) "
+            f"ficaram fora da análise por não terem loja cadastrada."
+        )
+    return " ".join(frases)
+
+
 def gerar_html(pivot_csv=PIVOT_CSV, destino=INDEX_HTML):
     """Gera a página estática (autocontida, sem recursos externos) a partir do pivot."""
     meses, series = ler_pivot(pivot_csv)
+    linhas_join, _, orfas, lojas_sem_vendas = juntar_vendas_lojas()
     grafico = montar_grafico_svg(meses, series)
+    conclusao = html.escape(montar_conclusao(meses, series, linhas_join, orfas, lojas_sem_vendas))
     periodo = f"{rotulo_mes(meses[0])} a {rotulo_mes(meses[-1])}"
-    pagina = MODELO_HTML.format(grafico=grafico, periodo=periodo)
+    pagina = MODELO_HTML.format(grafico=grafico, conclusao=conclusao, periodo=periodo)
     with open(destino, "w", encoding="utf-8", newline="") as f:
         f.write(pagina)
 

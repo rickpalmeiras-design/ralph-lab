@@ -1,4 +1,5 @@
 import contextlib
+import html
 import io
 import re
 import sys
@@ -36,6 +37,21 @@ class TestPagina(unittest.TestCase):
             self.assertRegex(self.html, rf'class="legenda"[^>]*>{regiao}</text>')
         self.assertEqual(self.html.count("<polyline"), 4)
         self.assertRegex(self.html, r"R\$ \d+ mil")
+
+    def test_conclusao(self):
+        paragrafos = re.findall(r'<p id="conclusao">(.*?)</p>', self.html, re.DOTALL)
+        self.assertEqual(len(paragrafos), 1)
+        texto = html.unescape(re.sub(r"<[^>]+>", "", paragrafos[0]))
+        self.assertGreaterEqual(len(texto), 300)
+        # o parágrafo vem logo abaixo do gráfico
+        self.assertRegex(self.html, r'</svg>\s*<p id="conclusao">')
+        self.assertIn("Sudeste", texto)
+        self.assertIn("R$ 265.077,49", texto)
+        self.assertIn("Sul", texto)
+        self.assertIn("R$ 146.009,84", texto)
+        self.assertIn("apenas a loja 107", texto)
+        self.assertIn("loja 108 (Batel) não teve vendas", texto)
+        self.assertIn("3 vendas órfãs (id_loja=999, R$ 8.120,00)", texto)
 
 
 if __name__ == "__main__":

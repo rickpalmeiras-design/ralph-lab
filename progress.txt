@@ -43,3 +43,14 @@ Started: sáb, 19 de set de 2026 14:18:56
   - test_pagina.py também roda join + pivot antes de gerar_html(), pois a página depende de pivot_receita.csv
   - Sul é a menor região (~R$ 146 mil) e fica bem abaixo das demais no gráfico, coerente com a conclusão da US-004
 ---
+
+## 2026-09-19 - US-004
+- Adicionado ao pipeline.py: montar_conclusao() (texto puro derivado do pivot, do join e das órfãs) e <p id="conclusao"> logo após o <svg> no MODELO_HTML (placeholder {conclusao}, escapado com html.escape); gerar_html() agora também chama juntar_vendas_lojas() para órfãs e lojas sem vendas
+- Texto cita Sudeste (R$ 265.077,49), Sul (R$ 146.009,84), causa (apenas a loja 107 vendeu; loja 108 (Batel) sem vendas) e ressalva das 3 órfãs (id_loja=999, R$ 8.120,00); ~480 caracteres
+- Files changed: pipeline.py, tests/test_pagina.py, index.html, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Os números da conclusão vêm de: totais por região do pivot (ler_pivot), lojas ativas/sem vendas do join e órfãs de juntar_vendas_lojas(); nada é escrito à mão
+  - A frase da causa só aparece se a região de menor receita tiver loja sem vendas; a da ressalva só se houver órfãs
+  - Verificação visual: Chrome headless com iframe de 375 px (mesmo método da US-003); parágrafo aparece logo abaixo do gráfico, sem rolagem horizontal
+  - US-005: build.py deve chamar executar_join(), executar_pivot() e gerar_html() nessa ordem (o __main__ do pipeline.py já faz isso)
+---
