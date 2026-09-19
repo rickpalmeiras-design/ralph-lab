@@ -1,0 +1,108 @@
+{
+  "project": "Receita Mensal por Região",
+  "branchName": "ralph/receita-mensal-por-regiao",
+  "description": "Pipeline em Python (só biblioteca padrão) que faz o join interno de data/vendas.csv com data/lojas.csv, gera o pivot de receita mensal por região e publica uma página estática index.html com gráfico e conclusão. Valores de conferência: join com 420 linhas, receita total R$ 931.274,06 e Sudeste líder com R$ 265.077,49.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Join interno de vendas com lojas",
+      "description": "Como analista, quero cruzar data/vendas.csv com data/lojas.csv por id_loja para ter cada venda enriquecida com nome da loja, região, UF e gerente.",
+      "acceptanceCriteria": [
+        "Existe pipeline.py com função que lê data/vendas.csv e data/lojas.csv em UTF-8 e faz o join interno por id_loja (ids comparados como string)",
+        "Valores de receita_brl são lidos e somados com decimal.Decimal, nunca float",
+        "vendas_lojas.csv é gerado na raiz do projeto, em UTF-8, com newline='' e lineterminator '\\n', e cabeçalho exato: id_venda,data,id_loja,categoria,unidades,receita_brl,nome_loja,regiao,uf,gerente",
+        "vendas_lojas.csv tem exatamente 420 linhas de dados (421 com o cabeçalho), preservando a ordem original das vendas",
+        "As 3 vendas com id_loja=999 (V00421, V00422, V00423) NÃO aparecem em vendas_lojas.csv e id_venda é único no resultado",
+        "receita_brl é escrita com exatamente 2 casas decimais no arquivo de saída",
+        "A execução imprime no stdout: linhas lidas (423), linhas no join (420), órfãs descartadas (3 vendas, R$ 8.120,00) e lojas sem vendas (108 - Batel); o programa não falha por causa das órfãs",
+        "Existe tests/test_join.py (unittest) com teste: número de linhas de dados do join = 420",
+        "tests/test_join.py tem teste: soma de receita_brl de vendas_lojas.csv, calculada com Decimal, = 931274.06",
+        "Tests pass (python -m unittest discover tests)",
+        "Typecheck passes (python -m compileall -q . sem erros; o projeto não tem type checker)"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Pivot de receita mensal por região",
+      "description": "Como analista, quero uma tabela região × mês com a receita para comparar regiões rapidamente.",
+      "acceptanceCriteria": [
+        "pipeline.py tem função de pivot que lê vendas_lojas.csv (não os CSVs originais) e agrupa por regiao e mês YYYY-MM extraído da coluna data",
+        "pivot_receita.csv é gerado na raiz do projeto, em UTF-8, com lineterminator '\\n'",
+        "Primeira linha (cabeçalho) exatamente: regiao,2026-01,2026-02,2026-03,2026-04,2026-05,2026-06",
+        "Exatamente 4 linhas de dados em ordem alfabética: Centro-Oeste, Nordeste, Sudeste, Sul (5 linhas com o cabeçalho)",
+        "Toda linha tem exatamente 7 colunas",
+        "Todo valor numérico usa ponto decimal e exatamente 2 casas (ex.: 44144.42; célula sem vendas vale 0.00), casando com a regex ^\\d+\\.\\d{2}$",
+        "Nenhum valor contém 'R$', espaço, vírgula ou separador de milhar",
+        "Uma venda com mês fora dos 6 meses do cabeçalho faz a função falhar com mensagem clara, em vez de ser ignorada em silêncio",
+        "Soma de todas as células do pivot, calculada com Decimal, = 931274.06",
+        "Existe tests/test_pivot.py (unittest) com teste de formato: cabeçalho exato, 4 linhas de dados, 7 colunas por linha e regex de 2 casas em cada valor",
+        "tests/test_pivot.py tem teste: a região com maior soma é Sudeste e sua soma é 265077.49",
+        "Tests pass (python -m unittest discover tests)",
+        "Typecheck passes (python -m compileall -q . sem erros; o projeto não tem type checker)"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Página index.html com gráfico da receita mensal por região",
+      "description": "Como gestor, quero abrir uma página e ver a evolução mensal da receita de cada região.",
+      "acceptanceCriteria": [
+        "pipeline.py tem função que gera index.html na raiz a partir de pivot_receita.csv (nenhum número escrito à mão)",
+        "A página é autocontida: sem CDN, fontes ou scripts externos; abre por duplo clique, offline",
+        "O gráfico é um <svg> inline com id=\"grafico-receita\", com aria-label ou <title> descritivo",
+        "O gráfico mostra 4 séries (uma por região) ao longo de 6 meses (2026-01 a 2026-06), com eixos, rótulos de mês, eixo de valores em reais (ex.: 'R$ 40 mil') e legenda que identifica cada região",
+        "As 4 séries têm cores distinguíveis entre si e com contraste suficiente sobre o fundo",
+        "<html lang=\"pt-BR\">, <meta charset=\"utf-8\">, <title> descritivo e <meta name=\"viewport\">; sem rolagem horizontal em 375 px de largura",
+        "Existe tests/test_pagina.py (unittest) com teste: index.html contém o elemento id=\"grafico-receita\" dentro de um <svg (ou <canvas)",
+        "Tests pass (python -m unittest discover tests)",
+        "Typecheck passes (python -m compileall -q . sem erros; o projeto não tem type checker)",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Parágrafo de conclusão na página",
+      "description": "Como gestor, quero um texto curto que interprete o gráfico, para não precisar analisar os números sozinho.",
+      "acceptanceCriteria": [
+        "index.html tem um único <p id=\"conclusao\"> logo abaixo do gráfico",
+        "O texto do parágrafo (sem tags HTML) tem no mínimo 300 caracteres",
+        "O texto é gerado a partir dos dados do pivot, sem números escritos à mão",
+        "O texto cita a região líder (Sudeste) e sua receita no período no formato pt-BR: R$ 265.077,49",
+        "O texto cita a região de menor receita (Sul, R$ 146.009,84) e a causa provável: apenas a loja 107 vendeu e a loja 108 (Batel) não teve vendas",
+        "O texto informa a ressalva de que 3 vendas órfãs (id_loja=999, R$ 8.120,00) ficaram fora da análise",
+        "tests/test_pagina.py tem teste: o <p id=\"conclusao\"> existe e o texto (sem tags) tem >= 300 caracteres",
+        "Tests pass (python -m unittest discover tests)",
+        "Typecheck passes (python -m compileall -q . sem erros; o projeto não tem type checker)",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Ponto de entrada único, README e execução ponta a ponta",
+      "description": "Como desenvolvedor, quero um único comando que regenere todos os artefatos, para reproduzir o resultado sem passos manuais.",
+      "acceptanceCriteria": [
+        "build.py executa join, pivot e geração do HTML, nessa ordem, gerando vendas_lojas.csv, pivot_receita.csv e index.html",
+        "Rodar python build.py duas vezes seguidas produz arquivos idênticos (git diff vazio nos 3 artefatos; sem timestamps na saída)",
+        "python -m unittest discover tests roda a partir da raiz sem instalar dependências e a suíte tem no mínimo 4 testes, todos passando (linhas do join, receita total, formato do pivot, gráfico na página)",
+        "README.md curto explica como gerar os arquivos, rodar os testes e abrir index.html",
+        "Os 3 artefatos gerados estão atualizados e versionados no git junto com o código",
+        "Tests pass (python -m unittest discover tests)",
+        "Typecheck passes (python -m compileall -q . sem erros; o projeto não tem type checker)"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": ""
+    }
+  ]
+}

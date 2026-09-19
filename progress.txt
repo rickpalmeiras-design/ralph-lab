@@ -1,0 +1,66 @@
+## Codebase Patterns
+- Só biblioteca padrão do Python; pipeline.py na raiz concentra join, pivot e HTML (funções separadas por etapa)
+- Dinheiro sempre em decimal.Decimal; escrever com f"{v:.2f}"; formatar pt-BR com formatar_brl() (R$ 8.120,00)
+- CSVs de saída: open(..., encoding="utf-8", newline="") + csv.writer(lineterminator="\n")
+- Testes: unittest em tests/, com sys.path.insert da raiz; silenciar stdout do pipeline com contextlib.redirect_stdout (stdout do Windows não é UTF-8; o __main__ faz sys.stdout.reconfigure(encoding="utf-8"))
+- Checks: python -m unittest discover tests && python -m compileall -q .
+- __pycache__/ está no .gitignore
+- Texto/números da página vêm do pivot_receita.csv (ler_pivot); rótulos de mês via rotulo_mes() ('2026-01' -> 'jan/26')
+
+---
+# Ralph Progress Log
+Started: sáb, 19 de set de 2026 14:18:56
+---
+
+## 2026-09-19 - US-001
+- Criado pipeline.py com join interno vendas x lojas (id_loja como string, receita em Decimal), geração de vendas_lojas.csv (420 linhas) e resumo no stdout (423 lidas, 420 no join, 3 órfãs R$ 8.120,00, loja 108 - Batel sem vendas)
+- Files changed: pipeline.py, tests/test_join.py, vendas_lojas.csv, .gitignore, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Dados brutos somam R$ 939.394,06; menos as órfãs (8.120,00) = 931.274,06 (valor de conferência)
+  - juntar_vendas_lojas() devolve (linhas, lidas, órfãs, lojas_sem_vendas); linhas têm receita_brl como Decimal, escrever_vendas_lojas() converte para 2 casas
+  - Os CSVs de entrada são ASCII/LF, sem espaços extras; ids de venda únicos
+  - US-002 deve ler vendas_lojas.csv (não os originais) para o pivot
+---
+
+## 2026-09-19 - US-002
+- Adicionado ao pipeline.py: calcular_pivot() (lê vendas_lojas.csv, soma Decimal por região × mês, ValueError se mês fora de MESES), escrever_pivot() e executar_pivot(); __main__ agora roda join + pivot
+- Gera pivot_receita.csv (4 regiões em ordem alfabética, 6 meses, 2 casas decimais); Sudeste = 265077.49, Sul = 146009.84, total = 931274.06
+- Files changed: pipeline.py, tests/test_pivot.py, pivot_receita.csv, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Constantes MESES e PIVOT_CSV ficam no topo do pipeline.py; calcular_pivot() devolve {regiao: {mes: Decimal}} (US-003 deve ler pivot_receita.csv, não recalcular)
+  - test_pivot.py roda executar_join() antes de executar_pivot(), pois o pivot depende de vendas_lojas.csv existir
+  - Teste de mês fora do intervalo usa CSV temporário (tempfile) passado a calcular_pivot(caminho)
+---
+
+## 2026-09-19 - US-003
+- Adicionado ao pipeline.py: ler_pivot(), passo_do_eixo(), marcador_svg(), montar_grafico_svg() e gerar_html(); MODELO_HTML (CSS embutido, sem recursos externos) e ESTILOS_SERIES (cor + forma do marcador por região); __main__ agora roda join + pivot + HTML
+- Gera index.html: <svg id="grafico-receita"> inline (viewBox 480x400, width 100%), 4 linhas, eixo Y 'R$ N mil' calculado a partir do máximo, rótulos 'jan/26'..., legenda 2x2, <title> em cada ponto com valor pt-BR
+- Files changed: pipeline.py, tests/test_pagina.py, index.html, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - MODELO_HTML usa str.format: chaves do CSS estão duplicadas ({{ }}); novos placeholders (ex.: {conclusao} da US-004) entram no modelo e em gerar_html()
+  - Não existe skill dev-browser: verificação visual feita com Chrome headless (--screenshot). A janela headless tem largura mínima, então para simular 375 px use um HTML temporário com <iframe width=375> (scrollWidth == clientWidth = 375, sem rolagem horizontal)
+  - Cuidado: Decimal // trunca em direção a zero; use math.ceil(maximo / passo) para arredondar para cima
+  - test_pagina.py também roda join + pivot antes de gerar_html(), pois a página depende de pivot_receita.csv
+  - Sul é a menor região (~R$ 146 mil) e fica bem abaixo das demais no gráfico, coerente com a conclusão da US-004
+---
+
+## 2026-09-19 - US-004
+- Adicionado ao pipeline.py: montar_conclusao() (texto puro derivado do pivot, do join e das órfãs) e <p id="conclusao"> logo após o <svg> no MODELO_HTML (placeholder {conclusao}, escapado com html.escape); gerar_html() agora também chama juntar_vendas_lojas() para órfãs e lojas sem vendas
+- Texto cita Sudeste (R$ 265.077,49), Sul (R$ 146.009,84), causa (apenas a loja 107 vendeu; loja 108 (Batel) sem vendas) e ressalva das 3 órfãs (id_loja=999, R$ 8.120,00); ~480 caracteres
+- Files changed: pipeline.py, tests/test_pagina.py, index.html, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Os números da conclusão vêm de: totais por região do pivot (ler_pivot), lojas ativas/sem vendas do join e órfãs de juntar_vendas_lojas(); nada é escrito à mão
+  - A frase da causa só aparece se a região de menor receita tiver loja sem vendas; a da ressalva só se houver órfãs
+  - Verificação visual: Chrome headless com iframe de 375 px (mesmo método da US-003); parágrafo aparece logo abaixo do gráfico, sem rolagem horizontal
+  - US-005: build.py deve chamar executar_join(), executar_pivot() e gerar_html() nessa ordem (o __main__ do pipeline.py já faz isso)
+---
+
+## 2026-09-19 - US-005
+- Criado build.py (único ponto de entrada: executar_join(), executar_pivot(), gerar_html(), nessa ordem) e README.md (gerar, testar, abrir index.html); removido o __main__ do pipeline.py (e o import sys, que ficou sem uso)
+- Verificado: python build.py duas vezes gera arquivos idênticos (cmp) e sem diff no git para os 3 artefatos; 12 testes passando; compileall ok
+- Files changed: build.py, README.md, pipeline.py, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Rodar a pipeline via `python build.py`; pipeline.py agora é só biblioteca (sem __main__)
+  - Saída determinística: sem timestamps, arquivos escritos com newline="" / lineterminator "\n", então idênticos no Windows
+  - Todas as 5 histórias do PRD concluídas
+---
