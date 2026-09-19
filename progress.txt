@@ -1,0 +1,22 @@
+## Codebase Patterns
+- Só biblioteca padrão do Python; pipeline.py na raiz concentra join, pivot e HTML (funções separadas por etapa)
+- Dinheiro sempre em decimal.Decimal; escrever com f"{v:.2f}"; formatar pt-BR com formatar_brl() (R$ 8.120,00)
+- CSVs de saída: open(..., encoding="utf-8", newline="") + csv.writer(lineterminator="\n")
+- Testes: unittest em tests/, com sys.path.insert da raiz; silenciar stdout do pipeline com contextlib.redirect_stdout (stdout do Windows não é UTF-8; o __main__ faz sys.stdout.reconfigure(encoding="utf-8"))
+- Checks: python -m unittest discover tests && python -m compileall -q .
+- __pycache__/ está no .gitignore
+
+---
+# Ralph Progress Log
+Started: sáb, 19 de set de 2026 14:18:56
+---
+
+## 2026-09-19 - US-001
+- Criado pipeline.py com join interno vendas x lojas (id_loja como string, receita em Decimal), geração de vendas_lojas.csv (420 linhas) e resumo no stdout (423 lidas, 420 no join, 3 órfãs R$ 8.120,00, loja 108 - Batel sem vendas)
+- Files changed: pipeline.py, tests/test_join.py, vendas_lojas.csv, .gitignore, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Dados brutos somam R$ 939.394,06; menos as órfãs (8.120,00) = 931.274,06 (valor de conferência)
+  - juntar_vendas_lojas() devolve (linhas, lidas, órfãs, lojas_sem_vendas); linhas têm receita_brl como Decimal, escrever_vendas_lojas() converte para 2 casas
+  - Os CSVs de entrada são ASCII/LF, sem espaços extras; ids de venda únicos
+  - US-002 deve ler vendas_lojas.csv (não os originais) para o pivot
+---

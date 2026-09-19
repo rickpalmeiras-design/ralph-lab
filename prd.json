@@ -21,7 +21,7 @@
         "Typecheck passes (python -m compileall -q . sem erros; o projeto não tem type checker)"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
