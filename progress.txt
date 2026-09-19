@@ -5,6 +5,7 @@
 - Testes: unittest em tests/, com sys.path.insert da raiz; silenciar stdout do pipeline com contextlib.redirect_stdout (stdout do Windows não é UTF-8; o __main__ faz sys.stdout.reconfigure(encoding="utf-8"))
 - Checks: python -m unittest discover tests && python -m compileall -q .
 - __pycache__/ está no .gitignore
+- Texto/números da página vêm do pivot_receita.csv (ler_pivot); rótulos de mês via rotulo_mes() ('2026-01' -> 'jan/26')
 
 ---
 # Ralph Progress Log
@@ -29,4 +30,16 @@ Started: sáb, 19 de set de 2026 14:18:56
   - Constantes MESES e PIVOT_CSV ficam no topo do pipeline.py; calcular_pivot() devolve {regiao: {mes: Decimal}} (US-003 deve ler pivot_receita.csv, não recalcular)
   - test_pivot.py roda executar_join() antes de executar_pivot(), pois o pivot depende de vendas_lojas.csv existir
   - Teste de mês fora do intervalo usa CSV temporário (tempfile) passado a calcular_pivot(caminho)
+---
+
+## 2026-09-19 - US-003
+- Adicionado ao pipeline.py: ler_pivot(), passo_do_eixo(), marcador_svg(), montar_grafico_svg() e gerar_html(); MODELO_HTML (CSS embutido, sem recursos externos) e ESTILOS_SERIES (cor + forma do marcador por região); __main__ agora roda join + pivot + HTML
+- Gera index.html: <svg id="grafico-receita"> inline (viewBox 480x400, width 100%), 4 linhas, eixo Y 'R$ N mil' calculado a partir do máximo, rótulos 'jan/26'..., legenda 2x2, <title> em cada ponto com valor pt-BR
+- Files changed: pipeline.py, tests/test_pagina.py, index.html, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - MODELO_HTML usa str.format: chaves do CSS estão duplicadas ({{ }}); novos placeholders (ex.: {conclusao} da US-004) entram no modelo e em gerar_html()
+  - Não existe skill dev-browser: verificação visual feita com Chrome headless (--screenshot). A janela headless tem largura mínima, então para simular 375 px use um HTML temporário com <iframe width=375> (scrollWidth == clientWidth = 375, sem rolagem horizontal)
+  - Cuidado: Decimal // trunca em direção a zero; use math.ceil(maximo / passo) para arredondar para cima
+  - test_pagina.py também roda join + pivot antes de gerar_html(), pois a página depende de pivot_receita.csv
+  - Sul é a menor região (~R$ 146 mil) e fica bem abaixo das demais no gráfico, coerente com a conclusão da US-004
 ---
