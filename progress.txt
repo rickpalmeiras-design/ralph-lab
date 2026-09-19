@@ -54,3 +54,13 @@ Started: sáb, 19 de set de 2026 14:18:56
   - Verificação visual: Chrome headless com iframe de 375 px (mesmo método da US-003); parágrafo aparece logo abaixo do gráfico, sem rolagem horizontal
   - US-005: build.py deve chamar executar_join(), executar_pivot() e gerar_html() nessa ordem (o __main__ do pipeline.py já faz isso)
 ---
+
+## 2026-09-19 - US-005
+- Criado build.py (único ponto de entrada: executar_join(), executar_pivot(), gerar_html(), nessa ordem) e README.md (gerar, testar, abrir index.html); removido o __main__ do pipeline.py (e o import sys, que ficou sem uso)
+- Verificado: python build.py duas vezes gera arquivos idênticos (cmp) e sem diff no git para os 3 artefatos; 12 testes passando; compileall ok
+- Files changed: build.py, README.md, pipeline.py, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Rodar a pipeline via `python build.py`; pipeline.py agora é só biblioteca (sem __main__)
+  - Saída determinística: sem timestamps, arquivos escritos com newline="" / lineterminator "\n", então idênticos no Windows
+  - Todas as 5 histórias do PRD concluídas
+---

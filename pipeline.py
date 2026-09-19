@@ -3,7 +3,6 @@
 import csv
 import html
 import math
-import sys
 from decimal import Decimal
 from pathlib import Path
 
@@ -326,10 +325,3 @@ def executar_join():
     print(f"Órfãs descartadas: {len(orfas)} vendas, {formatar_brl(receita_orfas)}")
     print(f"Lojas sem vendas: {sem_vendas or 'nenhuma'}")
     return linhas
-
-
-if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding="utf-8")
-    executar_join()
-    executar_pivot()
-    gerar_html()
