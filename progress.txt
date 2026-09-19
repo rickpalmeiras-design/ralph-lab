@@ -20,3 +20,13 @@ Started: sáb, 19 de set de 2026 14:18:56
   - Os CSVs de entrada são ASCII/LF, sem espaços extras; ids de venda únicos
   - US-002 deve ler vendas_lojas.csv (não os originais) para o pivot
 ---
+
+## 2026-09-19 - US-002
+- Adicionado ao pipeline.py: calcular_pivot() (lê vendas_lojas.csv, soma Decimal por região × mês, ValueError se mês fora de MESES), escrever_pivot() e executar_pivot(); __main__ agora roda join + pivot
+- Gera pivot_receita.csv (4 regiões em ordem alfabética, 6 meses, 2 casas decimais); Sudeste = 265077.49, Sul = 146009.84, total = 931274.06
+- Files changed: pipeline.py, tests/test_pivot.py, pivot_receita.csv, prd.json, progress.txt
+- **Learnings for future iterations:**
+  - Constantes MESES e PIVOT_CSV ficam no topo do pipeline.py; calcular_pivot() devolve {regiao: {mes: Decimal}} (US-003 deve ler pivot_receita.csv, não recalcular)
+  - test_pivot.py roda executar_join() antes de executar_pivot(), pois o pivot depende de vendas_lojas.csv existir
+  - Teste de mês fora do intervalo usa CSV temporário (tempfile) passado a calcular_pivot(caminho)
+---

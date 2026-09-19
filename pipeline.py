@@ -9,6 +9,9 @@ RAIZ = Path(__file__).resolve().parent
 VENDAS_CSV = RAIZ / "data" / "vendas.csv"
 LOJAS_CSV = RAIZ / "data" / "lojas.csv"
 VENDAS_LOJAS_CSV = RAIZ / "vendas_lojas.csv"
+PIVOT_CSV = RAIZ / "pivot_receita.csv"
+
+MESES = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]
 
 CAMPOS_LOJA = ["nome_loja", "regiao", "uf", "gerente"]
 CABECALHO_JOIN = [
@@ -70,6 +73,40 @@ def escrever_vendas_lojas(linhas, destino=VENDAS_LOJAS_CSV):
             escritor.writerow([saida[campo] for campo in CABECALHO_JOIN])
 
 
+def calcular_pivot(vendas_lojas_csv=VENDAS_LOJAS_CSV, meses=MESES):
+    """Soma receita_brl por região e mês (YYYY-MM da coluna data), lendo o CSV do join.
+
+    Retorna {regiao: {mes: Decimal}} com todos os meses do cabeçalho
+    preenchidos (0 quando não há vendas). Falha com ValueError se alguma
+    venda cair fora de `meses`, em vez de ignorá-la.
+    """
+    pivot = {}
+    for linha in ler_csv(vendas_lojas_csv):
+        mes = linha["data"][:7]
+        if mes not in meses:
+            raise ValueError(
+                f"Venda {linha['id_venda']} tem mês {mes} (data {linha['data']}) "
+                f"fora dos meses do pivot: {', '.join(meses)}"
+            )
+        por_mes = pivot.setdefault(linha["regiao"], dict.fromkeys(meses, Decimal("0")))
+        por_mes[mes] += Decimal(linha["receita_brl"])
+    return pivot
+
+
+def escrever_pivot(pivot, destino=PIVOT_CSV, meses=MESES):
+    with open(destino, "w", encoding="utf-8", newline="") as f:
+        escritor = csv.writer(f, lineterminator="\n")
+        escritor.writerow(["regiao", *meses])
+        for regiao in sorted(pivot):
+            escritor.writerow([regiao, *(f"{pivot[regiao][mes]:.2f}" for mes in meses)])
+
+
+def executar_pivot():
+    pivot = calcular_pivot()
+    escrever_pivot(pivot)
+    return pivot
+
+
 def executar_join():
     linhas, lidas, orfas, lojas_sem_vendas = juntar_vendas_lojas()
     escrever_vendas_lojas(linhas)
@@ -86,3 +123,4 @@ def executar_join():
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     executar_join()
+    executar_pivot()
